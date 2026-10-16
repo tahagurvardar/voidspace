@@ -58,12 +58,29 @@ Constellation: deterministic placement now avoids collisions (oldest first, each
 
 Verification after the pass: typecheck 0 errors; lint clean; **124/124** unit + integration tests; build passes; **E2E 34/34** (2 new layout regressions: start screen has no scroll; selected note ends above the nav). An intermittent unit-test failure (≈1 in 6 runs) was traced to the Clear edit test: a controlled textarea's text content mirrors its value, so `findByText` could match the soon-detached textarea. The test now waits for the editor to close and queries the rendered paragraph; 0 failures in 10 consecutive full runs afterwards. One earlier full E2E run had a single teardown timeout in the mobile Explore test that did not reproduce in 6 isolated repeats or the next full run (machine contention with software WebGL).
 
+## Production hardening (2026-10-16)
+
+The current local changes preserve the v2.0.0 layout, dependencies, and database schema. Small violet color adjustments address confirmed button contrast failures:
+
+- Backup conflict detection includes creation dates. Imports enforce the 5 MiB UTF-8 byte limit before parsing, and oversized files are rejected before reading. Pending data operations disable conflicting controls; deleting all data clears stale import previews.
+- Timer recovery tolerates blocked local storage reads, and failed snapshot writes produce a deduplicated warning. Sequential start/pause/resume/reset across tabs has browser coverage.
+- Echo Waves sleeps while its keyboard cursor is stationary and no waves are active. Orbit keyboard movement preserves zero coordinates. Constellation nearest-distance calculations are faster with unchanged measured output.
+- Import and duration validation errors are associated with their inputs. Primary-button normal/hover contrast exceeds 4.5:1. Single-key mode shortcuts have a persisted opt-out, preserving the default behavior for existing users.
+- CI runs typecheck, lint, unit/integration tests, and production-build E2E tests on one standard Ubuntu runner. It uses the frozen lockfile and matching Chromium, read-only repository permissions, and seven-day diagnostic retention. It contains no deployment step.
+- Vitest uses two workers to bound memory after an unrestricted run exhausted memory. Playwright uses one worker after concurrent software-WebGL runs failed under load; zero retries expose failures. Layout checks use readiness and geometry polling instead of fixed sleeps. The two-tab storage test uses a fixed wall clock and reduced motion; dedicated tests still exercise elapsed time and full WebGL rendering.
+- Invalid-backup E2E coverage verifies saved data after reload. The release-storage check reports database failures and closes its connection.
+
+Post-cleanup verification: `pnpm.cmd verify` passed TypeScript, lint, **143 tests in 16 files**, and the production build. `CI=true pnpm.cmd test:e2e` passed **40/40** desktop/mobile Chromium tests with zero retries in **3.3 minutes** on Windows. Both commands exited 0. Workflow YAML parsing and `git diff --check` passed. Regression checks for the data, storage, and idle-rendering fixes failed before implementation and passed afterward. Earlier resource-contention failures informed the worker limits; passing runs do not prove all timing races absent.
+
+Security, performance, and accessibility findings are in [QUALITY_REVIEW.md](QUALITY_REVIEW.md). Production dependencies have no reported advisories; the full audit reports one unpatched high-severity development dependency advisory. GitHub-hosted Ubuntu execution and artifact upload remain unverified. These changes have not been committed, pushed, or deployed.
+
 ## Known limitations / open items
 
-- Not verified on Firefox or Safari, or on real mobile hardware; E2E runs Chromium (Edge) only, with software WebGL.
+- Imports are capped at 5 MiB, while exports currently have no equivalent cap. Very large archives need a tested backup/restore strategy before promising unrestricted backup round trips.
+- Not verified on Firefox or Safari, or on real mobile hardware; E2E runs bundled Chromium in CI and Edge locally, with software WebGL.
 - No real-GPU frame-rate measurement or Lighthouse audit was run.
 - Sound output is not automatically tested (only defaults/toggles).
-- Cross-tab timer sync is implemented but not covered by tests.
+- Sequential cross-tab timer controls now have E2E coverage; simultaneous conflicting actions remain unverified.
 - Background-tab completion chime may be delayed by browser timer throttling (record times are exact).
 - `THREE.Clock` deprecation warning is logged by the R3F runtime.
 - Zod v4 contributes noticeably to the initial bundle; `zod/mini` would shrink it (not done).

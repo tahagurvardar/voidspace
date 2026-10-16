@@ -40,6 +40,7 @@ export type GraphicsQuality = (typeof GRAPHICS_QUALITIES)[number];
 
 export interface Preferences {
   soundEnabled: boolean;
+  modeShortcutsEnabled: boolean;
   /** 0..1 */
   volume: number;
   motionPreference: MotionPreference;
@@ -52,6 +53,7 @@ export interface Preferences {
 
 export const DEFAULT_PREFERENCES: Preferences = {
   soundEnabled: false,
+  modeShortcutsEnabled: true,
   volume: 0.6,
   motionPreference: 'system',
   graphicsQuality: 'auto',

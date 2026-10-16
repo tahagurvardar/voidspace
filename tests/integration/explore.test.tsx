@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExplorePanel } from '@/features/explore/ExplorePanel';
+import { EchoWaves } from '@/features/explore/echo/EchoWaves';
+import { OrbitSimulation } from '@/features/explore/orbit/OrbitSimulation';
 import { stubCanvas2D } from '../helpers';
 
 function withCanvas() {
@@ -15,6 +17,66 @@ function withCanvas() {
 afterEach(() => vi.restoreAllMocks());
 
 describe('Explore', () => {
+  it('keeps the Orbit keyboard field at the top-left edge until moved inward', () => {
+    withCanvas();
+    vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(1);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, left: 0, top: 0, right: 96, bottom: 96, width: 96, height: 96,
+      toJSON: () => ({}),
+    });
+    const setPointer = vi.spyOn(OrbitSimulation.prototype, 'setPointer');
+    render(<ExplorePanel />);
+    const canvas = screen.getByTestId('orbit-canvas');
+    fireEvent.keyDown(canvas, { key: ' ' });
+    expect(setPointer).toHaveBeenLastCalledWith(48, 48, true);
+    for (let i = 0; i < 3; i++) fireEvent.keyDown(canvas, { key: 'ArrowLeft' });
+    expect(setPointer).toHaveBeenLastCalledWith(0, 48, true);
+    for (let i = 0; i < 3; i++) fireEvent.keyDown(canvas, { key: 'ArrowUp' });
+    expect(setPointer).toHaveBeenLastCalledWith(0, 0, true);
+    fireEvent.keyDown(canvas, { key: ' ' });
+    expect(setPointer).toHaveBeenLastCalledWith(0, 0, false);
+    fireEvent.keyDown(canvas, { key: ' ' });
+    expect(setPointer).toHaveBeenLastCalledWith(0, 0, true);
+    fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+    expect(setPointer).toHaveBeenLastCalledWith(24, 0, true);
+    fireEvent.keyDown(canvas, { key: 'ArrowDown' });
+    expect(setPointer).toHaveBeenLastCalledWith(24, 24, true);
+  });
+
+  it('sleeps with a stationary Echo keyboard cursor and wakes for input', () => {
+    withCanvas();
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextId = 0;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.set(++nextId, callback);
+      return nextId;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id); });
+    const draw = () => {
+      expect(frames.size).toBe(1);
+      const [id, callback] = [...frames.entries()][0]!;
+      frames.delete(id);
+      act(() => callback(1000));
+    };
+    const { unmount } = render(<EchoWaves />);
+    try {
+      draw();
+      const canvas = screen.getByRole('application', { name: 'Echo Waves' });
+      fireEvent.focus(canvas);
+      draw();
+      expect(frames.size).toBe(0);
+      fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+      draw();
+      expect(frames.size).toBe(0);
+      fireEvent.keyDown(canvas, { key: 'Enter' });
+      draw();
+      expect(frames.size).toBe(1); // Moving waves keep animating.
+    } finally {
+      unmount();
+    }
+    expect(frames.size).toBe(0);
+  });
+
   it('switches between Orbit Lab and Echo Waves with an accessible tab list', async () => {
     withCanvas();
     const user = userEvent.setup();

@@ -7,6 +7,7 @@ import {
   backupFileName,
   deleteAllData,
   exportBackup,
+  MAX_BACKUP_BYTES,
   parseBackup,
   planImport,
   type ConflictStrategy,
@@ -96,11 +97,15 @@ export function DataSettings() {
   };
 
   const onFile = async (file: File | undefined) => {
+    if (busy) return;
     setPlan(null);
     setImportError(null);
     if (!file) return;
     setBusy(true);
     try {
+      if (file.size > MAX_BACKUP_BYTES) {
+        throw new Error('This file is larger than 5 MB and cannot be a VOIDSPACE backup.');
+      }
       const text = await file.text();
       const backup = parseBackup(text);
       setPlan(await planImport(backup));
@@ -112,7 +117,7 @@ export function DataSettings() {
   };
 
   const doImport = async () => {
-    if (!plan) return;
+    if (!plan || busy) return;
     setBusy(true);
     try {
       const result = await applyImport(plan.backup, { strategy, includePreferences: includePrefs });
@@ -134,11 +139,15 @@ export function DataSettings() {
   };
 
   const doDelete = async () => {
+    if (busy) return;
     setBusy(true);
     try {
       await deleteAllData();
       focusStore.setState({ timer: createIdle(DEFAULT_PREFERENCES.defaultFocusDuration * 60) });
       hydratePrefs({ ...DEFAULT_PREFERENCES });
+      setPlan(null);
+      setImportError(null);
+      if (fileRef.current) fileRef.current.value = '';
       setDeleteOpen(false);
       setDeleteText('');
       toast('All VOIDSPACE data on this device was deleted.');
@@ -199,6 +208,9 @@ export function DataSettings() {
             ref={fileRef}
             id={fileId}
             type="file"
+            disabled={busy}
+            aria-invalid={!!importError}
+            aria-describedby={importError ? `${fileId}-error` : undefined}
             accept="application/json,.json"
             className="sr-only"
             onChange={(e) => void onFile(e.target.files?.[0])}
@@ -207,7 +219,7 @@ export function DataSettings() {
       </div>
 
       {importError && (
-        <p role="alert" className="text-sm text-danger">
+        <p id={`${fileId}-error`} role="alert" className="text-sm text-danger">
           {importError}
         </p>
       )}
@@ -261,6 +273,7 @@ export function DataSettings() {
             <button
               type="button"
               className="vs-btn vs-btn-ghost"
+              disabled={busy}
               onClick={() => {
                 setPlan(null);
                 if (fileRef.current) fileRef.current.value = '';
@@ -277,7 +290,7 @@ export function DataSettings() {
 
       <div className="border-t border-line pt-5">
         {!deleteOpen ? (
-          <button type="button" className="vs-btn vs-btn-danger" onClick={() => setDeleteOpen(true)}>
+          <button type="button" className="vs-btn vs-btn-danger" onClick={() => setDeleteOpen(true)} disabled={busy}>
             <Trash2 size={15} aria-hidden="true" />
             Delete all data…
           </button>

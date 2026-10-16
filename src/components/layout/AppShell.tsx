@@ -68,6 +68,7 @@ export function AppShell() {
   const setMode = useAppStore((s) => s.setMode);
   const settingsOpen = useAppStore((s) => s.settingsOpen);
   const loadPrefs = usePreferencesStore((s) => s.load);
+  const modeShortcutsEnabled = usePreferencesStore((s) => s.prefs.modeShortcutsEnabled);
   const reducedMotion = useReducedMotion();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const userNavigated = useRef(false);
@@ -123,6 +124,7 @@ export function AppShell() {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || settingsOpen) return;
       if (isEditable(e.target) || document.querySelector('dialog[open]')) return;
+      if (!modeShortcutsEnabled && e.key !== 'Escape') return;
       const map: Record<string, AppMode> = { '1': 'clear', '2': 'focus', '3': 'explore', '4': 'archive', Escape: 'home' };
       const next = map[e.key];
       if (next && next !== useAppStore.getState().mode) {
@@ -132,7 +134,7 @@ export function AppShell() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [navigate, settingsOpen]);
+  }, [navigate, settingsOpen, modeShortcutsEnabled]);
 
   // Pointer position for the core's Explore/home reactions (throttled to animation frames).
   useEffect(() => {

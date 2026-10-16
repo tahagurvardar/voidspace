@@ -142,6 +142,41 @@ describe('focus store', () => {
     expect(records).toEqual([expect.objectContaining({ status: 'interrupted', actualFocusedSeconds: 360 })]);
   });
 
+  it.each(['start', 'heartbeat'] as const)('reports snapshot failure on %s once until storage recovers', (failurePoint) => {
+    let now = Date.UTC(2026, 9, 15);
+    const onError = vi.fn();
+    const saveSnapshot = vi.fn(() => true);
+    const store = createFocusStore(
+      defaultFocusDeps({ now: () => now, loadSnapshot: () => null, saveSnapshot, onError }),
+    );
+    store.getState().hydrate(25);
+    if (failurePoint === 'start') saveSnapshot.mockReturnValue(false);
+    store.getState().start();
+    if (failurePoint === 'heartbeat') {
+      expect(onError).not.toHaveBeenCalled();
+      saveSnapshot.mockReturnValue(false);
+      store.getState().heartbeat();
+    }
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(expect.stringMatching(/reload|other tabs/i));
+    now += MIN;
+    store.getState().heartbeat();
+    store.getState().pause();
+    store.getState().resume();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(store.getState().timer.status).toBe('running');
+    expect(remainingMs(store.getState().timer, now)).toBe(24 * MIN);
+
+    saveSnapshot.mockReturnValue(true);
+    store.getState().heartbeat();
+    expect(onError).toHaveBeenCalledTimes(1);
+    saveSnapshot.mockReturnValue(false);
+    store.getState().pause();
+    expect(onError).toHaveBeenCalledTimes(2);
+    expect(store.getState().timer.status).toBe('paused');
+  });
+
   it('reports persistence failures instead of losing them silently', async () => {
     const onError = vi.fn();
     const store = createFocusStore(

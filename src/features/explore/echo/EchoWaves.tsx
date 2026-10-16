@@ -82,8 +82,8 @@ export function EchoWaves() {
 
       const alive = !field.isIdle;
       if (alive !== hasWaves) setHasWaves(alive);
-      // Sleep when nothing is moving.
-      return alive || cursor.current !== null;
+      // A stationary cursor needs no animation; focus, blur and arrow keys wake the loop.
+      return alive;
     },
   });
 

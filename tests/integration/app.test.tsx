@@ -62,6 +62,24 @@ describe('Application shell', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Make room for your mind.' })).toBeInTheDocument();
   });
 
+  it('lets users disable single-character mode shortcuts without disabling Escape', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const toggle = await screen.findByRole('checkbox', { name: 'Enable single-key mode shortcuts (1–4)' });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.keyboard('1234');
+    expect(useAppStore.getState().mode).toBe('home');
+    await user.click(screen.getByTestId('nav-focus'));
+    await user.keyboard('1');
+    expect(useAppStore.getState().mode).toBe('focus');
+    await user.keyboard('{Escape}');
+    expect(useAppStore.getState().mode).toBe('home');
+  });
+
   it('restores the mode from the URL hash (back/forward)', async () => {
     render(<AppShell />);
     act(() => {
@@ -106,5 +124,21 @@ describe('Application shell', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await user.click(toggle);
     await waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('associates invalid default duration with its settings field and clears the error', async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const field = await screen.findByLabelText(/Default session length/);
+    await user.type(field, '181');
+    await user.click(screen.getByRole('button', { name: 'Set default' }));
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).toHaveAccessibleDescription(/Maximum is 180/);
+    await user.clear(field);
+    await user.type(field, '30');
+    await user.click(screen.getByRole('button', { name: 'Set default' }));
+    expect(field).toHaveAttribute('aria-invalid', 'false');
+    expect(field).not.toHaveAttribute('aria-describedby');
   });
 });

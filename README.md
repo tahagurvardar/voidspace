@@ -13,7 +13,7 @@ Everything is stored in your browser on your device. There is no account, no ser
 
 ## Quick start
 
-Requirements: Node.js ≥ 20.9 (developed on 24), pnpm ≥ 10.
+Use Node.js **24.20.0** and pnpm **12.11.2** to match CI. The locked development tools require Node.js `^22.22.2 || ^24.15.0 || >=26`.
 
 ```bash
 pnpm install
@@ -43,11 +43,17 @@ The production build is deployed on Vercel at **https://voidspace-pi.vercel.app*
 | `pnpm test:e2e` | Playwright end-to-end tests against a production build (desktop + mobile) |
 | `pnpm verify` | typecheck → lint → unit tests → build |
 
-E2E tests use the locally installed **Microsoft Edge** (`channel: 'msedge'`) so no browser download is needed. Use `PW_CHANNEL=chrome`, or `PW_CHANNEL=chromium` after `pnpm exec playwright install chromium`. `PW_WORKERS` sets parallelism (default 2 — WebGL runs in software via SwiftShader in tests and is CPU-heavy).
+E2E tests use the locally installed **Microsoft Edge** (`channel: 'msedge'`) so no browser download is needed. Use `PW_CHANNEL=chrome`, or `PW_CHANNEL=chromium` after `pnpm exec playwright install chromium`. `PW_WORKERS` sets parallelism (default 1 — WebGL runs in software via SwiftShader in tests and is CPU-heavy). Unit/integration tests default to two workers to bound jsdom memory use.
+
+## Continuous integration
+
+[CI](.github/workflows/ci.yml) runs on pull requests, pushes to `main`, and manual dispatch. One standard Ubuntu runner installs the frozen pnpm lockfile, runs typecheck, lint, and unit/integration tests, then runs the desktop/mobile Playwright suite using Chromium with one worker. Playwright builds and starts the production server, so CI builds it once. Node and pnpm versions match the locally verified toolchain; no repository secrets are required. Superseded runs are canceled to conserve runner minutes.
+
+Playwright defaults to bundled Chromium when `CI` is set. Install its matching browser with `pnpm exec playwright install chromium` locally (CI also installs Linux system dependencies). Tests use zero retries. The `playwright-results` workflow artifact contains the HTML report and failure traces/screenshots, retained for seven days. Open a downloaded report with `pnpm exec playwright show-report playwright-report`.
 
 ## Using it
 
-- **Keyboard:** `1` Clear, `2` Focus, `3` Explore, `4` Archive, `Esc` back to the start (shortcuts are ignored while typing). `Ctrl/⌘ + Enter` saves the thought you are writing. The archive constellation has one tab stop; arrow keys move between stars.
+- **Keyboard:** `1` Clear, `2` Focus, `3` Explore, `4` Archive, `Esc` back to the start (shortcuts are ignored while typing). Settings → Keyboard can disable the single-key mode shortcuts. `Ctrl/⌘ + Enter` saves the thought you are writing. The archive constellation has one tab stop; arrow keys move between stars.
 - **Sound** is off by default. Turn it on from the speaker icon in the header or in Settings. Echo Waves has its own explicit "Wave sound" toggle.
 - **Motion:** Settings → Motion follows your system's reduced-motion setting by default, or can be forced to Reduced/Full. Reduced motion shows a still core.
 - **Graphics:** Auto / High / Low / Static. Static uses no 3D at all. Without WebGL the app automatically uses the static core; nothing else changes.
@@ -67,7 +73,7 @@ Next.js App Router with one route (`/`), statically prerendered. A client `AppSh
 
 ## Browser support and known limitations
 
-- Targets current Chromium, Firefox and Safari. Automated E2E coverage runs on Chromium (Edge) only, at a desktop and a Pixel-7-sized mobile viewport.
+- Targets current Chromium, Firefox and Safari. Automated E2E coverage runs on Chromium (bundled Chromium in CI, Edge locally), at a desktop and a Pixel-7-sized mobile viewport.
 - When a tab is in the background, browsers throttle timers. The focus timer is timestamp-based, so recorded times are always exact, but the completion **chime** may be delayed (up to ~1 minute in Chromium) until the tab gets a timer slot or becomes visible.
 - A session left running while the app is closed for more than 2 minutes is recorded as *interrupted*, credited with focus time up to the last moment the app was open.
 - The R3F runtime logs a `THREE.Clock` deprecation warning in the console (from the library, harmless).

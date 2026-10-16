@@ -13,6 +13,15 @@ const t = (id: string, createdAt: number, category: Thought['category'] = null, 
 const many = (n: number) => Array.from({ length: n }, (_, i) => t(`id-${i}-${i * 31}`, i));
 
 describe('constellation layout', () => {
+  it('preserves established star positions in a crowded archive', () => {
+    const { nodes } = layoutConstellation(many(80));
+    expect([20, 40, 79].map((i) => [nodes[i]!.id, nodes[i]!.x, nodes[i]!.y])).toEqual([
+      ['id-20-620', 54.487048552930354, 43.82709260415286],
+      ['id-40-1240', 85.76290674298069, 40.06855816543102],
+      ['id-79-2449', 37.83428839840926, 86.20399329904467],
+    ]);
+  });
+
   it('is deterministic: the same notes always produce the same sky', () => {
     expect(layoutConstellation(many(30))).toEqual(layoutConstellation(many(30)));
     expect(nodePosition('abc')).toEqual(nodePosition('abc'));
