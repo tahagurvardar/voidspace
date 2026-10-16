@@ -95,6 +95,10 @@ export function layoutConstellation(thoughts: readonly Thought[]): {
 
 function nearest(p: { x: number; y: number }, others: ReadonlyArray<{ x: number; y: number }>): number {
   let min = Infinity;
-  for (const o of others) min = Math.min(min, Math.hypot(p.x - o.x, p.y - o.y));
-  return min;
+  for (const o of others) {
+    const dx = p.x - o.x;
+    const dy = p.y - o.y;
+    min = Math.min(min, dx * dx + dy * dy);
+  }
+  return Math.sqrt(min);
 }

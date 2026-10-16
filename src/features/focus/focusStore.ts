@@ -12,7 +12,7 @@ export interface FocusStoreDeps {
   recordSession: (session: FocusSession) => Promise<void>;
   /** Fired once when a session reaches its planned end. */
   onComplete: (session: FocusSession) => void;
-  /** Fired when persisting a record fails. */
+  /** Fired when persisting a record or timer snapshot fails. */
   onError: (message: string) => void;
   loadSnapshot: () => TimerState | null;
   saveSnapshot: (state: TimerState) => boolean;
@@ -39,11 +39,20 @@ export type FocusStore = StoreApi<FocusStoreState>;
 
 export function createFocusStore(deps: FocusStoreDeps): FocusStore {
   return createStore<FocusStoreState>()((set, get) => {
+    let snapshotFailed = false;
+    const persistSnapshot = (state: TimerState) => {
+      const saved = deps.saveSnapshot(state);
+      if (!saved && !snapshotFailed) {
+        deps.onError('The timer cannot be saved in this browser. It may not survive a reload or sync with other tabs.');
+      }
+      snapshotFailed = !saved;
+    };
+
     const commit = (t: Transition, opts: { notify?: boolean } = {}) => {
       const prev = get().timer;
       set({ timer: t.state });
       // Idle snapshots are kept too, so the chosen duration survives a reload.
-      deps.saveSnapshot(t.state);
+      persistSnapshot(t.state);
       if (t.record) {
         const record = t.record;
         deps.recordSession(record).catch((e: unknown) => {
@@ -91,7 +100,7 @@ export function createFocusStore(deps: FocusStoreDeps): FocusStore {
         if (timer.status !== 'running' && timer.status !== 'paused') return;
         const next = machine.heartbeat(timer, deps.now());
         set({ timer: next });
-        deps.saveSnapshot(next);
+        persistSnapshot(next);
       },
 
       dismiss: () => {

@@ -107,6 +107,15 @@ describe('focus sessions repository', () => {
 });
 
 describe('preferences repository', () => {
+  it('keeps mode shortcuts enabled for older settings and persists an opt-out', async () => {
+    expect(normalizePreferences({ soundEnabled: true }).modeShortcutsEnabled).toBe(true);
+    expect(normalizePreferences({ modeShortcutsEnabled: 'false' }).modeShortcutsEnabled).toBe(true);
+    const r = createPreferencesRepository(() => db);
+    await r.save({ ...DEFAULT_PREFERENCES, modeShortcutsEnabled: false });
+    expect((await r.load()).modeShortcutsEnabled).toBe(false);
+    expect((await db.preferences.get('preferences'))?.modeShortcutsEnabled).toBe(false);
+  });
+
   it('returns defaults when nothing is stored, then round-trips', async () => {
     const r = createPreferencesRepository(() => db);
     expect(await r.load()).toEqual(DEFAULT_PREFERENCES);

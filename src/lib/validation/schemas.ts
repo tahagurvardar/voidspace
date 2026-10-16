@@ -74,6 +74,7 @@ export const focusSessionSchema = z
 
 export const preferencesSchema = z.object({
   soundEnabled: z.boolean(),
+  modeShortcutsEnabled: z.boolean(),
   volume: z.number().min(0).max(1),
   motionPreference: z.enum(MOTION_PREFERENCES),
   graphicsQuality: z.enum(GRAPHICS_QUALITIES),

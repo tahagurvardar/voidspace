@@ -58,7 +58,11 @@ export function parseFocusSnapshot(raw: string | null): TimerState | null {
 }
 
 export function loadFocusSnapshot(): TimerState | null {
-  return parseFocusSnapshot(storage()?.getItem(FOCUS_SNAPSHOT_KEY) ?? null);
+  try {
+    return parseFocusSnapshot(storage()?.getItem(FOCUS_SNAPSHOT_KEY) ?? null);
+  } catch {
+    return null;
+  }
 }
 
 /** Returns false if the snapshot could not be written (storage full or disabled). */

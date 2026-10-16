@@ -47,6 +47,7 @@ export function OrbitLab() {
       });
       sim.mode = mode;
       sim.intensity = intensity;
+      sim.setPointer(sim.width / 2, sim.height / 2, false);
       simRef.current = sim;
     }
     return simRef.current;
@@ -177,8 +178,8 @@ export function OrbitLab() {
               e.preventDefault();
               const on = !keyboardField;
               setKeyboardField(on);
-              const x = sim.pointer.x || sim.width / 2;
-              const y = sim.pointer.y || sim.height / 2;
+              const x = sim.pointer.x;
+              const y = sim.pointer.y;
               sim.setPointer(x, y, on);
               return;
             }
@@ -191,8 +192,8 @@ export function OrbitLab() {
             const m = moves[e.key];
             if (!m) return;
             e.preventDefault();
-            const x = Math.min(sim.width, Math.max(0, (sim.pointer.x || sim.width / 2) + m[0]));
-            const y = Math.min(sim.height, Math.max(0, (sim.pointer.y || sim.height / 2) + m[1]));
+            const x = Math.min(sim.width, Math.max(0, sim.pointer.x + m[0]));
+            const y = Math.min(sim.height, Math.max(0, sim.pointer.y + m[1]));
             sim.setPointer(x, y, keyboardField);
           }}
           onBlur={() => {

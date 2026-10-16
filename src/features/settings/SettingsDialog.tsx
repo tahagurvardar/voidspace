@@ -178,9 +178,10 @@ export function SettingsDialog() {
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
               aria-invalid={!!minutesError}
+              aria-describedby={minutesError ? `${minutesId}-error` : undefined}
             />
             {minutesError && (
-              <p role="alert" className="text-xs text-danger">
+              <p id={`${minutesId}-error`} role="alert" className="text-xs text-danger">
                 {minutesError}
               </p>
             )}
@@ -196,6 +197,15 @@ export function SettingsDialog() {
       </Section>
 
       <Section title="Keyboard">
+        <label className="mb-4 flex items-center gap-2 text-sm text-ink-muted">
+          <input
+            type="checkbox"
+            className="size-4 accent-violet"
+            checked={prefs.modeShortcutsEnabled}
+            onChange={(e) => void set({ modeShortcutsEnabled: e.target.checked })}
+          />
+          Enable single-key mode shortcuts (1–4)
+        </label>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
           {[
             ['1, 2, 3', 'Clear, Focus, Explore'],

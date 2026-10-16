@@ -12,14 +12,74 @@ function trackErrors(page: Page) {
 
 const thoughtField = (page: Page) => page.getByLabel("What's on your mind?");
 
+test('primary button text meets AA contrast in normal and hover states', async ({ page }) => {
+  await page.goto('/#focus');
+  const button = page.getByRole('button', { name: 'Start', exact: true });
+  await expect(button).toBeEnabled();
+  for (const state of ['normal', 'hover']) {
+    if (state === 'hover') await button.hover();
+    const ratios = await button.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const luminance = (rgb: string) => {
+        const channels = rgb.match(/[\d.]+/g)!.slice(0, 3).map(Number).map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
+      };
+      const foreground = luminance(style.color);
+      const stops = style.backgroundImage.match(/rgb\([^)]+\)/g);
+      if (!stops || stops.length !== 2) throw new Error('Expected a two-stop opaque RGB gradient');
+      return stops.map((stop) => {
+        const background = luminance(stop);
+        return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+      });
+    });
+    for (const ratio of ratios) expect(ratio, `${state} gradient stop contrast`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
 test.describe('start screen & navigation', () => {
+  test('settings traps focus, restores it, and remembers the single-key shortcut opt-out', async ({ page }) => {
+    await page.goto('/');
+    const settings = page.getByRole('button', { name: 'Settings', exact: true });
+    await settings.click();
+    const dialog = page.getByRole('dialog', { name: 'Settings' });
+    const close = dialog.getByRole('button', { name: 'Close', exact: true });
+    const shortcuts = dialog.getByRole('checkbox', { name: 'Enable single-key mode shortcuts (1–4)' });
+    await close.focus();
+    await page.keyboard.press('Shift+Tab');
+    // Native dialogs can visit browser chrome before cycling back into the modal.
+    // Background document controls must never receive focus.
+    if (!(await page.evaluate(() => document.hasFocus()))) await page.keyboard.press('Shift+Tab');
+    await expect(shortcuts).toBeFocused();
+    await page.keyboard.press('Tab');
+    if (!(await page.evaluate(() => document.hasFocus()))) await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+    await shortcuts.uncheck();
+    await expect(shortcuts).not.toBeChecked();
+    await close.click();
+    await expect(settings).toBeFocused();
+    await page.reload();
+    await settings.click();
+    await expect(shortcuts).not.toBeChecked();
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    await expect(settings).toBeFocused();
+    await page.keyboard.press('1');
+    await expect(page.getByRole('heading', { level: 1, name: 'Make room for your mind.' })).toBeVisible();
+    await page.getByTestId('nav-focus').click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('heading', { level: 1, name: 'Make room for your mind.' })).toBeVisible();
+  });
+
   test('communicates the three modes immediately, without errors', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'Make room for your mind.' })).toBeVisible();
     for (const id of ['clear', 'focus', 'explore']) await expect(page.getByTestId(`nav-${id}`)).toBeVisible();
     await expect(page.getByTestId('core-anchor')).toBeVisible();
-    await page.waitForTimeout(500);
+    await expect(page.getByTestId('nav-clear')).toBeEnabled();
     expect(errors).toEqual([]);
   });
 
@@ -54,17 +114,28 @@ test.describe('start screen & navigation', () => {
 
   test('the start screen fits the viewport without scrolling', async ({ page }) => {
     await page.goto('/');
-    await page.waitForTimeout(300);
-    const [scroll, client] = await page.locator('main').evaluate((m) => [m.scrollHeight, m.clientHeight]);
-    expect(scroll).toBeLessThanOrEqual(client);
+    await expect(page.getByRole('heading', { level: 1, name: 'Make room for your mind.' })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await expect.poll(() => page.locator('main').evaluate((m) => m.scrollHeight - m.clientHeight)).toBeLessThanOrEqual(0);
   });
 
   test('has no horizontal overflow at this viewport', async ({ page }) => {
-    for (const hash of ['', '#clear', '#focus', '#explore', '#archive']) {
+    const modes = [
+      ['', 'Make room for your mind.'],
+      ['#clear', 'Put it somewhere safe, or let it go.'],
+      ['#focus', 'One thing, for a set time.'],
+      ['#explore', 'A short break for your hands and eyes.'],
+      ['#archive', 'Everything you chose to keep.'],
+    ];
+    for (const [hash, heading] of modes) {
       await page.goto(`/${hash}`);
-      await page.waitForTimeout(300);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(overflow, `overflow on ${hash || 'home'}`).toBeLessThanOrEqual(0);
+      await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+      if (hash === '#explore') await expect(page.getByTestId('orbit-canvas')).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await expect.poll(
+        () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
+        { message: `overflow on ${hash || 'home'}` },
+      ).toBeLessThanOrEqual(0);
     }
   });
 });
@@ -90,12 +161,12 @@ test.describe('clear & archive persistence', () => {
     // The selected note and its actions end above the bottom navigation.
     await expect(selected.getByRole('button', { name: 'Delete' })).toBeInViewport();
     await expect
-      .poll(async () => {
-        const noteBottom = (await selected.boundingBox())!.y + (await selected.boundingBox())!.height;
-        const navTop = (await page.getByRole('navigation', { name: 'Modes' }).boundingBox())!.y;
-        return noteBottom <= navTop;
-      })
-      .toBe(true);
+      .poll(() => selected.evaluate((note) => {
+        const nav = document.querySelector('nav[aria-label="Modes"]');
+        if (!nav) throw new Error('Mode navigation is missing');
+        return note.getBoundingClientRect().bottom - nav.getBoundingClientRect().top;
+      }))
+      .toBeLessThanOrEqual(0);
 
     await page.getByRole('button', { name: 'List' }).click();
     await expect(page.getByRole('list', { name: 'Archived thoughts' }).getByText('Remember to water the plants')).toBeVisible();
@@ -110,12 +181,27 @@ test.describe('clear & archive persistence', () => {
     await expect(page.getByText('Nothing saved yet.', { exact: false })).toBeVisible();
     const stored = await page.evaluate(
       () =>
-        new Promise<number>((resolve) => {
+        new Promise<number>((resolve, reject) => {
           const req = indexedDB.open('voidspace');
+          req.onerror = () => reject(req.error);
+          req.onblocked = () => reject(new Error('Opening the thoughts database was blocked'));
           req.onsuccess = () => {
-            const tx = req.result.transaction('thoughts', 'readonly');
-            const c = tx.objectStore('thoughts').count();
-            c.onsuccess = () => resolve(c.result);
+            const db = req.result;
+            try {
+              const tx = db.transaction('thoughts', 'readonly');
+              const count = tx.objectStore('thoughts').count();
+              tx.oncomplete = () => {
+                db.close();
+                resolve(count.result);
+              };
+              tx.onabort = () => {
+                db.close();
+                reject(tx.error ?? new Error('Counting thoughts was aborted'));
+              };
+            } catch (error) {
+              db.close();
+              reject(error);
+            }
           };
         }),
     );
@@ -137,6 +223,41 @@ test.describe('clear & archive persistence', () => {
 });
 
 test.describe('focus timer', () => {
+  test('synchronizes start, pause, resume and reset between tabs', async ({ page, context }) => {
+    // Both tabs share this fixed wall clock; slow CI cannot cross the reset-confirmation threshold.
+    // Timers and storage events still run normally (elapsed-time behavior has separate tests).
+    await page.clock.setFixedTime(new Date('2026-10-16T09:00:00Z'));
+    const other = await context.newPage();
+    // Keep two software-rendered WebGL scenes from competing in this storage-sync test.
+    // The dedicated WebGL test still requires a rendered frame with full motion.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await other.emulateMedia({ reducedMotion: 'reduce' });
+    const errors = trackErrors(page);
+    const otherErrors = trackErrors(other);
+    try {
+      await page.goto('/#focus');
+      await other.goto('/#focus');
+      await expect(other.getByRole('button', { name: 'Start', exact: true })).toBeEnabled();
+      await page.getByRole('button', { name: '15 min' }).click();
+      await expect(other.getByTestId('focus-remaining')).toHaveText('15:00');
+      await page.getByRole('button', { name: 'Start', exact: true }).click();
+      await expect(page.getByTestId('focus-status')).toContainText('Focusing');
+      await expect(other.getByTestId('focus-status')).toContainText('Focusing');
+      await other.getByRole('button', { name: 'Pause', exact: true }).click();
+      await expect(page.getByTestId('focus-status')).toContainText('Paused');
+      await expect(page.getByTestId('focus-remaining')).toHaveText(await other.getByTestId('focus-remaining').innerText());
+      await page.getByRole('button', { name: 'Resume', exact: true }).click();
+      await expect(other.getByTestId('focus-status')).toContainText('Focusing');
+      await other.getByRole('button', { name: 'Reset', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeVisible();
+      await expect(page.getByTestId('focus-remaining')).toHaveText('15:00');
+      expect(errors).toEqual([]);
+      expect(otherErrors).toEqual([]);
+    } finally {
+      await other.close();
+    }
+  });
+
   test('start, pause and resume reflect real elapsed time; a reload keeps the session', async ({ page }) => {
     // A paused fake clock + fastForward gives exact, deterministic time. (runFor would
     // fire every intermediate interval tick and flood React's scheduler.)
@@ -208,9 +329,6 @@ test.describe('explore', () => {
 });
 
 test.describe('graceful degradation', () => {
-  // Software WebGL (SwiftShader) can fail to create a context on a heavily loaded
-  // machine — the app then correctly falls back. Allow one retry for that check.
-  test.describe.configure({ retries: 1 });
   test('uses the WebGL core when available', async ({ page }) => {
     await page.goto('/');
     const anchor = page.getByTestId('core-anchor');
@@ -295,8 +413,12 @@ test.describe('data', () => {
     await expect(page.getByRole('button', { name: /Idea: From a backup/ })).toBeVisible();
   });
 
-  test('rejects an invalid backup without changing anything', async ({ page }) => {
-    await page.goto('/');
+  test('rejects an invalid backup and preserves saved thoughts after reload', async ({ page }) => {
+    await page.goto('/#clear');
+    const savedThoughts = page.getByRole('list', { name: 'Saved thoughts' });
+    await thoughtField(page).fill('Keep this thought');
+    await page.getByRole('button', { name: 'Save thought' }).click();
+    await expect(savedThoughts.getByText('Keep this thought', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Settings' }).click();
     await page.getByLabel('Import backup').setInputFiles({
       name: 'bad.json',
@@ -304,5 +426,11 @@ test.describe('data', () => {
       buffer: Buffer.from('{"app":"voidspace","formatVersion":1,"data":{"thoughts":[{"id":"x"}]}}'),
     });
     await expect(page.getByRole('alert').filter({ hasText: 'invalid data' })).toBeVisible();
+    await expect(page.getByTestId('import-plan')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Import', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Close' }).click();
+    await page.reload();
+    await expect(savedThoughts.getByText('Keep this thought', { exact: true })).toBeVisible();
+    await expect(savedThoughts.getByRole('listitem')).toHaveCount(1);
   });
 });

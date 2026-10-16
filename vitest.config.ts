@@ -9,6 +9,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Bound jsdom worker memory; unrestricted parallelism can exhaust local/CI memory.
+    maxWorkers: 2,
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/unit/**/*.test.{ts,tsx}', 'tests/integration/**/*.test.{ts,tsx}'],

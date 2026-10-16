@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { VoidspaceDB } from '@/lib/storage/db';
 import {
   BACKUP_FORMAT_VERSION,
+  MAX_BACKUP_BYTES,
   applyImport,
   deleteAllData,
   exportBackup,
@@ -56,6 +57,19 @@ describe('export', () => {
 });
 
 describe('parseBackup rejects invalid input', () => {
+  it('enforces the byte limit for multibyte text, including unknown fields', () => {
+    const text = backupText({}, { padding: '界'.repeat(Math.ceil(MAX_BACKUP_BYTES / 3)) });
+    expect(text.length).toBeLessThan(MAX_BACKUP_BYTES);
+    expect(() => parseBackup(text)).toThrow(/larger than 5 MB/);
+  });
+
+  it('accepts a valid backup at the size limit and rejects one byte beyond it', () => {
+    const text = backupText({});
+    const boundary = text + ' '.repeat(MAX_BACKUP_BYTES - text.length);
+    expect(parseBackup(boundary).data.thoughts).toEqual([]);
+    expect(() => parseBackup(boundary + ' ')).toThrow(/larger than 5 MB/);
+  });
+
   it.each([
     ['not JSON', '{oops', /not valid JSON/],
     ['another app', JSON.stringify({ app: 'other', formatVersion: 1 }), /not a VOIDSPACE backup/],
@@ -112,6 +126,27 @@ describe('import conflict handling', () => {
   it('replace overwrites conflicts with the imported copy', async () => {
     await applyImport(incoming(), { strategy: 'replace', includePreferences: false }, db);
     expect((await db.thoughts.get('conflict'))?.content).toBe('imported version');
+  });
+
+  it('plans a creation-date difference as a conflict without changing local data', async () => {
+    const backup = parseBackup(backupText({ thoughts: [{ ...thought('same', 'same'), createdAt: T - 1000 }] }));
+    const plan = await planImport(backup, db);
+
+    expect(plan.thoughts).toEqual({ new: 0, conflicting: 1, identical: 0 });
+    expect((await db.thoughts.get('same'))?.createdAt).toBe(T);
+  });
+
+  it.each([
+    ['replace', T - 1000, 1],
+    ['keep-existing', T, 0],
+    ['keep-newer', T, 0],
+  ] as const)('%s resolves a conflict differing only in creation date', async (strategy, createdAt, written) => {
+    const backup = parseBackup(backupText({ thoughts: [{ ...thought('same', 'same'), createdAt: T - 1000 }] }));
+    const result = await applyImport(backup, { strategy, includePreferences: false }, db);
+
+    expect((await db.thoughts.get('same'))?.createdAt).toBe(createdAt);
+    expect(result.thoughtsWritten).toBe(written);
+    expect(result.skipped).toBe(1 - written);
   });
 
   it('keep-existing only adds new items', async () => {

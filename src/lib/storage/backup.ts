@@ -95,7 +95,7 @@ export function backupFileName(now: Date = new Date()): string {
  * with a specific message; never writes anything.
  */
 export function parseBackup(text: string): BackupV1 {
-  if (text.length > MAX_BACKUP_BYTES) {
+  if (text.length > MAX_BACKUP_BYTES || new Blob([text]).size > MAX_BACKUP_BYTES) {
     throw new StorageError('validation', 'This file is larger than 5 MB and cannot be a VOIDSPACE backup.');
   }
   let raw: unknown;
@@ -140,7 +140,12 @@ export function parseBackup(text: string): BackupV1 {
 }
 
 function sameThought(a: Thought, b: Thought): boolean {
-  return a.content === b.content && a.category === b.category && a.updatedAt === b.updatedAt;
+  return (
+    a.content === b.content &&
+    a.category === b.category &&
+    a.createdAt === b.createdAt &&
+    a.updatedAt === b.updatedAt
+  );
 }
 
 function sameSession(a: FocusSession, b: FocusSession): boolean {
