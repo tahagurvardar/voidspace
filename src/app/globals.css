@@ -1,0 +1,430 @@
+@import 'tailwindcss';
+
+/*
+ * VOIDSPACE design tokens — derived from the approved v2 reference.
+ * Midnight navy field, violet/indigo light, electric-blue accents.
+ */
+@theme {
+  --color-void: #080c19;
+  --color-void-deep: #05070f;
+  --color-panel: #0d1226;
+  --color-surface: #141a33;
+  --color-surface-raised: #1a2142;
+  --color-line: #252c50;
+  --color-line-strong: #363f6e;
+
+  --color-ink: #ecebfa;
+  --color-ink-muted: #a9aecb;
+  --color-ink-faint: #8288ad;
+
+  --color-violet: #8e7cf6;
+  --color-violet-soft: #c9bfff;
+  --color-violet-deep: #4b3bb0;
+  --color-signal: #6f8bff;
+  --color-danger: #f08aa0;
+  --color-success: #7fd6c2;
+
+  --color-cat-idea: #a594ff;
+  --color-cat-task: #6f9bff;
+  --color-cat-feeling: #f09ac4;
+  --color-cat-note: #6fd6c8;
+  --color-cat-none: #d9dcf2;
+
+  --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    background: var(--color-void);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-violet) 45%, transparent);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-violet-soft);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  input[type='range'] {
+    accent-color: var(--color-violet);
+  }
+
+  /* Native dialogs: we position and style them ourselves. */
+  dialog::backdrop {
+    background: rgb(3 5 12 / 0.72);
+    backdrop-filter: blur(3px);
+  }
+}
+
+@layer components {
+  /* Quiet, tactile control surface shared by buttons and cards. */
+  .vs-surface {
+    background: var(--color-surface);
+    border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+    border-radius: 10px;
+  }
+
+  .vs-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    padding: 0 1rem;
+    border-radius: 9px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition:
+      background-color 160ms var(--ease-out-soft),
+      border-color 160ms var(--ease-out-soft),
+      color 160ms var(--ease-out-soft),
+      transform 120ms var(--ease-out-soft);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .vs-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .vs-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .vs-btn-primary {
+    background: linear-gradient(180deg, #8f7ef7, #6c5ae6);
+    color: #fff;
+    box-shadow:
+      0 0 0 1px rgb(201 191 255 / 0.25) inset,
+      0 8px 24px -10px rgb(124 104 240 / 0.7);
+  }
+  .vs-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #9d8dfa, #7563ec);
+  }
+
+  .vs-btn-ghost {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line);
+  }
+  .vs-btn-ghost:hover:not(:disabled) {
+    background: var(--color-surface-raised);
+    border-color: var(--color-line-strong);
+  }
+
+  .vs-btn-quiet {
+    color: var(--color-ink-muted);
+  }
+  .vs-btn-quiet:hover:not(:disabled) {
+    color: var(--color-ink);
+    background: rgb(255 255 255 / 0.04);
+  }
+
+  .vs-btn-danger {
+    background: color-mix(in oklab, var(--color-danger) 16%, var(--color-surface));
+    color: #ffd6df;
+    border: 1px solid color-mix(in oklab, var(--color-danger) 40%, transparent);
+  }
+  .vs-btn-danger:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-danger) 26%, var(--color-surface));
+  }
+
+  .vs-icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9px;
+    color: var(--color-ink-muted);
+    transition:
+      color 160ms,
+      background-color 160ms;
+  }
+  .vs-icon-btn:hover {
+    color: var(--color-ink);
+    background: rgb(255 255 255 / 0.05);
+  }
+  .vs-icon-btn[aria-pressed='true'] {
+    color: var(--color-violet-soft);
+  }
+
+  .vs-input {
+    width: 100%;
+    background: var(--color-void-deep);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    color: var(--color-ink);
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9375rem;
+    transition: border-color 160ms;
+  }
+  .vs-input::placeholder {
+    color: var(--color-ink-faint);
+  }
+  .vs-input:hover {
+    border-color: var(--color-line-strong);
+  }
+  .vs-input:focus-visible {
+    outline: none;
+    border-color: var(--color-violet);
+    box-shadow: 0 0 0 3px rgb(142 124 246 / 0.25);
+  }
+
+  /* Small uppercase label used sparingly, as in the reference ("WELCOME TO YOUR SPACE"). */
+  .vs-kicker {
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-violet-soft);
+    opacity: 0.85;
+  }
+
+  /* Segmented control (radio group styled as a pill track). */
+  .vs-segment {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 10px;
+    background: var(--color-void-deep);
+    border: 1px solid var(--color-line);
+  }
+  .vs-segment > button,
+  .vs-segment > label {
+    min-height: 2.25rem;
+    padding: 0 0.85rem;
+    border-radius: 7px;
+    font-size: 0.8125rem;
+    color: var(--color-ink-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition:
+      background-color 160ms,
+      color 160ms;
+  }
+  .vs-segment > button:hover,
+  .vs-segment > label:hover {
+    color: var(--color-ink);
+  }
+  .vs-segment > [aria-checked='true'],
+  .vs-segment > [aria-pressed='true'],
+  .vs-segment > [aria-selected='true'],
+  .vs-segment > label:has(input:checked) {
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    box-shadow: 0 0 0 1px var(--color-line-strong) inset;
+  }
+  .vs-segment > label:has(input:focus-visible) {
+    outline: 2px solid var(--color-violet-soft);
+    outline-offset: 1px;
+  }
+
+  /* Writing surface: the textarea and its actions read as one object. */
+  .vs-composer {
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--color-void-deep), color-mix(in oklab, var(--color-void-deep) 70%, var(--color-panel)));
+    transition:
+      border-color 160ms,
+      box-shadow 160ms;
+  }
+  .vs-composer:hover {
+    border-color: var(--color-line-strong);
+  }
+  .vs-composer:focus-within {
+    border-color: var(--color-violet);
+    box-shadow: 0 0 0 3px rgb(142 124 246 / 0.2);
+  }
+
+  .vs-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+/* ───────────── Layout ───────────── */
+
+/* Home orb: as large as the space left after header, headline, tagline and cards. */
+.home-core {
+  width: clamp(10rem, min(86vw, 100dvh - 22.5rem), 34rem);
+}
+
+/* Explore canvases: whatever height remains for them above the navigation. */
+.vs-play-canvas {
+  height: clamp(15rem, 100dvh - 27rem, 34rem);
+}
+
+/* Scrolling regions end with a short fade so content visibly stops above the nav. */
+.vs-fade-bottom {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 2.25rem), transparent);
+}
+
+/* ───────────── Living Core: static/CSS fallback orb ───────────── */
+
+.core-halo {
+  /* Box-shadow glow: unlike an oversized layer, it never creates scrollable overflow. */
+  position: absolute;
+  inset: 26%;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 90px 50px rgb(110 90 230 / 0.16),
+    0 0 180px 90px rgb(70 60 170 / 0.08);
+  pointer-events: none;
+}
+
+.core-orb {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(240 232 255 / 0.95) 0%, rgb(186 164 255 / 0.85) 12%, transparent 38%),
+    radial-gradient(circle at 50% 50%, #8a6ff0 0%, #6a51d8 38%, #3b2c95 72%, #1b1650 100%);
+  box-shadow:
+    0 0 60px -10px rgb(124 104 240 / 0.6),
+    inset 0 0 40px rgb(10 8 40 / 0.6);
+  transition:
+    filter 600ms var(--ease-out-soft),
+    transform 600ms var(--ease-out-soft);
+}
+
+.core-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 9999px;
+  border: 2px solid rgb(150 140 230 / 0.55);
+  pointer-events: none;
+}
+
+.core-fallback[data-mode='focus'] .core-orb {
+  filter: hue-rotate(-12deg) saturate(0.85);
+}
+.core-fallback[data-mode='explore'] .core-orb {
+  filter: saturate(1.15) brightness(1.06);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .core-fallback[data-animate='true'] .core-orb {
+    animation: core-breathe 7s ease-in-out infinite;
+  }
+  .core-fallback[data-animate='true'] .core-ring-a {
+    animation: core-ring-drift 40s linear infinite;
+  }
+}
+
+@keyframes core-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
+}
+
+@keyframes core-ring-drift {
+  from {
+    transform: translate(-50%, -50%) rotate(-24deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(336deg);
+  }
+}
+
+/* ───────────── ARCHIVE: selected star ───────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(:has([data-reduced-motion='true'])) .constellation-ring {
+    animation: constellation-ring 2.8s ease-in-out infinite;
+  }
+}
+
+@keyframes constellation-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.45;
+  }
+}
+
+/* ───────────── CLEAR: release dissolve ───────────── */
+
+.thought-dissolve {
+  animation: thought-dissolve 900ms var(--ease-out-soft) forwards;
+}
+
+@keyframes thought-dissolve {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    letter-spacing: 0;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(10px);
+    letter-spacing: 0.35em;
+    transform: translateY(-18px);
+  }
+}
+
+.star-rise {
+  animation: star-rise 1100ms var(--ease-out-soft) forwards;
+}
+
+@keyframes star-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.4);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -12px) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -90px) scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thought-dissolve,
+  .star-rise {
+    animation-duration: 1ms;
+  }
+}
+
+/* App-level reduced motion (user setting), mirrors the media query. */
+[data-reduced-motion='true'] .thought-dissolve,
+[data-reduced-motion='true'] .star-rise {
+  animation-duration: 1ms;
+}
+[data-reduced-motion='true'] .core-orb,
+[data-reduced-motion='true'] .core-ring-a {
+  animation: none !important;
+}

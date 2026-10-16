@@ -1,0 +1,7 @@
+# Consistent LF line endings in the repository and working copies.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

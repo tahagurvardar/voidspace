@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# Tests
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Environment & secrets
+.env*
+*.pem
+*.key
+
+# Logs & temp files
+*.log
+npm-debug.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+
+# Deployment
+.vercel/
+
+# OS & editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
